@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>StockPulse AI — Real-Time Market Dashboard</title>
+<meta name="description" content="AI-powered real-time stock market dashboard with buy/sell predictions, price targets, and trade setup for US and Indian markets."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body>
+
+<!-- ── HEADER ─────────────────────────────────────────────── -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo">
+      <span class="logo-icon">⚡</span>
+      <span class="logo-text">StockPulse <span class="logo-ai">AI</span></span>
+    </div>
+    <div class="market-status">
+      <span class="status-dot"></span>
+      <span id="marketStatusText">Live Data</span>
+    </div>
+  </div>
+  <div class="header-center">
+    <div class="search-wrapper">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search ticker… AAPL, TCS.NS" autocomplete="off"/>
+      <div class="search-dropdown" id="searchDropdown"></div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="refresh-badge" id="refreshBadge">
+      <span class="refresh-icon">↻</span>
+      <span id="refreshCountdown">60s</span>
+    </div>
+    <div class="time-display" id="timeDisplay"></div>
+  </div>
+</header>
+
+<!-- ── TICKER TAPE ────────────────────────────────────────── -->
+<div class="ticker-tape-wrapper">
+  <div class="ticker-tape"><div class="tape-inner" id="tapeInner"></div></div>
+</div>
+
+<!-- ── MAIN LAYOUT ───────────────────────────────────────── -->
+<main class="main-layout">
+
+  <!-- LEFT: Watchlist -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>Watchlist</h2>
+      <div class="tab-group">
+        <button class="tab active" id="tabUS" onclick="filterWatchlist('us')">🇺🇸 US</button>
+        <button class="tab" id="tabIN" onclick="filterWatchlist('in')">🇮🇳 India</button>
+        <button class="tab" id="tabAll" onclick="filterWatchlist('all')">All</button>
+      </div>
+    </div>
+    <div class="watchlist" id="watchlist"></div>
+  </aside>
+
+  <!-- CENTER: Chart -->
+  <section class="chart-section">
+    <!-- Stock header -->
+    <div class="stock-header" id="stockHeader">
+      <div class="stock-title">
+        <span class="stock-ticker-label" id="headerTicker">AAPL</span>
+        <span class="stock-name-label" id="headerName">Apple Inc.</span>
+        <span class="exchange-badge" id="exchangeBadge">NASDAQ</span>
+      </div>
+      <div class="stock-price-block">
+        <span class="price-big" id="headerPrice">—</span>
+        <span class="price-change" id="headerChange">—</span>
+      </div>
+    </div>
+
+    <!-- Timeframe + Chart type controls -->
+    <div class="controls-bar">
+      <div class="timeframe-row">
+        <div class="tf-group intraday-group">
+          <span class="tf-label">Intraday</span>
+          <button class="period-btn" data-preset="5m"  onclick="setPreset(this,'5m')">5m</button>
+          <button class="period-btn" data-preset="15m" onclick="setPreset(this,'15m')">15m</button>
+          <button class="period-btn" data-preset="1H"  onclick="setPreset(this,'1H')">1H</button>
+        </div>
+        <div class="tf-divider"></div>
+        <div class="tf-group daily-group">
+          <span class="tf-label">Daily+</span>
+          <button class="period-btn active" data-preset="1M" onclick="setPreset(this,'1M')">1D</button>
+          <button class="period-btn" data-preset="3M"  onclick="setPreset(this,'3M')">3M</button>
+          <button class="period-btn" data-preset="6M"  onclick="setPreset(this,'6M')">6M</button>
+          <button class="period-btn" data-preset="1Y"  onclick="setPreset(this,'1Y')">1Y</button>
+          <button class="period-btn" data-preset="2Y"  onclick="setPreset(this,'2Y')">2Y</button>
+          <button class="period-btn" data-preset="5Y"  onclick="setPreset(this,'5Y')">5Y</button>
+        </div>
+      </div>
+      <div class="charttype-row">
+        <button class="ctype-btn active" id="ct-candlestick"  onclick="setChartType('candlestick')">🕯 Candle</button>
+        <button class="ctype-btn"        id="ct-heikin_ashi"  onclick="setChartType('heikin_ashi')">🕯 Heikin Ashi</button>
+        <button class="ctype-btn"        id="ct-line"         onclick="setChartType('line')">📈 Line</button>
+        <button class="ctype-btn"        id="ct-area"         onclick="setChartType('area')">🌊 Area</button>
+        <button class="ctype-btn"        id="ct-bar"          onclick="setChartType('bar')">📊 OHLC</button>
+        <button class="ctype-btn"        id="ct-baseline"     onclick="setChartType('baseline')">📉 Baseline</button>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="chart-container"  id="chartContainer"></div>
+    <div class="volume-container" id="volumeContainer"></div>
+
+    <!-- OHLCV bar -->
+    <div class="ohlcv-bar" id="ohlcvBar">
+      <span>O: <b id="oVal">—</b></span>
+      <span>H: <b id="hVal">—</b></span>
+      <span>L: <b id="lVal">—</b></span>
+      <span>C: <b id="cVal">—</b></span>
+      <span>Vol: <b id="vVal">—</b></span>
+    </div>
+  </section>
+
+  <!-- RIGHT: AI Panel -->
+  <aside class="right-panel">
+
+    <!-- AI Signal Card -->
+    <div class="signal-card" id="signalCard">
+      <div class="signal-card-header">
+        <span class="ai-label">🤖 AI Prediction</span>
+        <span class="signal-ticker" id="signalTicker">—</span>
+      </div>
+      <div class="signal-main">
+        <div class="signal-badge hold" id="signalBadge">—</div>
+        <div class="confidence-ring-wrapper">
+          <svg class="confidence-ring" viewBox="0 0 100 100" id="confRing">
+            <circle class="ring-bg"   cx="50" cy="50" r="40"/>
+            <circle class="ring-fill" cx="50" cy="50" r="40" id="ringFill"
+                    stroke-dasharray="0 251" stroke-dashoffset="63"/>
+          </svg>
+          <div class="confidence-label">
+            <span id="confPct">—</span>
+            <small>confidence</small>
+          </div>
+        </div>
+      </div>
+      <div class="prob-bars"       id="probBars"></div>
+      <div class="key-indicators"  id="keyIndicators"></div>
+      <p class="disclaimer">Educational use only. Not financial advice.</p>
+    </div>
+
+    <!-- Trade Setup Card -->
+    <div class="trade-card" id="tradeCard">
+      <div class="card-title">🎯 Trade Setup</div>
+      <div class="trade-grid" id="tradeGrid">
+        <div class="trade-row"><span class="tr-label">Entry Price</span><span class="tr-val" id="trEntry">—</span></div>
+        <div class="trade-row tp1"><span class="tr-label">Take Profit 1</span><span class="tr-val green" id="trTP1">—</span></div>
+        <div class="trade-row tp2"><span class="tr-label">Take Profit 2</span><span class="tr-val green" id="trTP2">—</span></div>
+        <div class="trade-row sl"><span class="tr-label">Stop Loss</span><span class="tr-val red" id="trSL">—</span></div>
+        <div class="trade-row"><span class="tr-label">Risk / Reward</span><span class="tr-val accent" id="trRR">—</span></div>
+        <div class="trade-row"><span class="tr-label">Expected Return</span><span class="tr-val" id="trRet">—</span></div>
+        <div class="trade-row"><span class="tr-label">Support</span><span class="tr-val muted" id="trSupport">—</span></div>
+        <div class="trade-row"><span class="tr-label">Resistance</span><span class="tr-val muted" id="trResist">—</span></div>
+      </div>
+      <div class="trade-action-row">
+        <button class="action-btn buy-btn"  id="buyBtn"  onclick="executeTrade('BUY')">BUY</button>
+        <button class="action-btn sell-btn" id="sellBtn" onclick="executeTrade('SELL')">SELL</button>
+      </div>
+    </div>
+
+    <!-- Model Accuracy -->
+    <div class="metrics-card">
+      <div class="card-title">📊 Model Metrics</div>
+      <div class="metrics-grid">
+        <div class="metric-item"><span class="m-label">Accuracy</span><span class="m-value" id="mAccuracy">—</span></div>
+        <div class="metric-item"><span class="m-label">Precision</span><span class="m-value" id="mPrecision">—</span></div>
+        <div class="metric-item"><span class="m-label">Recall</span><span class="m-value" id="mRecall">—</span></div>
+        <div class="metric-item"><span class="m-label">F1 Score</span><span class="m-value" id="mF1">—</span></div>
+        <div class="metric-item"><span class="m-label">Train Rows</span><span class="m-value" id="mTrain">—</span></div>
+        <div class="metric-item"><span class="m-label">Test Rows</span><span class="m-value" id="mTest">—</span></div>
+      </div>
+    </div>
+
+    <!-- Feature Importance -->
+    <div class="feature-card">
+      <div class="card-title">🔬 Top Signal Features</div>
+      <div id="featureList"></div>
+    </div>
+
+    <!-- Paper Portfolio -->
+    <div class="portfolio-card">
+      <div class="card-title">💼 Paper Portfolio <span class="pf-count" id="pfCount"></span></div>
+      <div class="portfolio-list" id="portfolioList"><p class="no-trades">No trades yet. Use BUY/SELL above.</p></div>
+      <div class="pf-summary" id="pfSummary"></div>
+      <button class="clear-btn" onclick="clearPortfolio()" id="clearBtn" style="display:none">Clear All</button>
+    </div>
+
+    <!-- All Signals mini -->
+    <div class="overview-card">
+      <div class="card-title">🌐 All Signals</div>
+      <div class="mini-signals" id="miniSignals"></div>
+    </div>
+
+  </aside>
+</main>
+
+<!-- Trade Confirmation Modal -->
+<div class="modal-overlay" id="modalOverlay" style="display:none">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span id="modalTitle">Confirm Trade</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-ok" id="modalOk">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loader-box">
+    <div class="spinner"></div>
+    <p id="loadingText">Initializing StockPulse AI…</p>
+  </div>
+</div>
+
+<script src="js/charts.js"></script>
+<script src="js/predictions.js"></script>
+<script src="js/dashboard.js"></script>
+</body>
+</html>
